@@ -1,4 +1,5 @@
 #!/bin/bash
+# set -x
 
 # No site da UFGD esse domínio é usado só pra ser redirecionado
 second_link='https://sigecad-academico.ufgd.edu.br'
@@ -36,23 +37,33 @@ data="authenticityToken=${play_session}&\
 user.username=${username}&\
 user.password=${password}"
 
+proxy_settings='n'
+if [ "${proxy_settings}" = 'y' ]; then
+   proxy_url='http://127.0.0.1:8080/'
+   proxy_param="--proxy ${proxy_url}"
+fi
+
 post_response=$(curl -sS -X POST \
    -w '%{header_json}' \
    --data-raw "$data" \
    --insecure -i "$main_link" \
    --user-agent "$user_agent" \
-   --cookie "${cookie}"
+   --cookie "${cookie}" \
+   $proxy_param
 )
 
 # Pegando o token UFGDNET e atribuindo as informações de usuário
 # ao fim.
-ufgd_net=$(grep -Po '(?<=UFGDNET=)[a-z0-9]{40}' <<< "$post_response")
+ufgd_net=$(grep -Po -m 1 '(?<=UFGDNET=)[a-z0-9]{40}' \
+   <<< "$post_response")
+
 ufgd_net="${ufgd_net}-${username}"
 
 curl -sS --insecure --user-agent "$user_agent" \
    --cookie "UFGDNET=${ufgd_net}" \
    -iL "$third_link" \
-   -o output.zip
+   -o output.zip \
+   $proxy_param
 
 # Removendo informações de cabeçalho da requisição GET
 sed -i '1,/^[[:space:]]*$/d' output.zip
